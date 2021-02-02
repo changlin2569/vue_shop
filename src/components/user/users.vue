@@ -341,7 +341,7 @@ export default {
     },
     // 提交修改角色
     addTrimUser () {
-      // console.log(this.trimUserForm)
+      console.log(this.trimUserForm)
       this.$refs.trimUserRef.validate(async trimFlag => {
         if (trimFlag) {
           const { data: res } = await this.$http.put(`users/${this.trimUserForm.id}`, {
