@@ -100,7 +100,7 @@
               ></el-button>
             </el-tooltip>
             <!-- 删除角色 -->
-            <el-button type="danger" icon="el-icon-delete" circle></el-button>
+            <el-button type="danger" icon="el-icon-delete" @click="deleteUser(slotProps.row.id)" circle></el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -353,11 +353,36 @@ export default {
             this.getUsersData()
             this.$message.success(res.meta.msg)
           } else {
-            this.$message.error(res.meta.msg)
+            return this.$message.error(res.meta.msg)
           }
         } else {
-          this.$message.error('修改提交失败')
+          return this.$message.error('修改提交失败')
         }
+      })
+    },
+    // 删除用户操作
+    deleteUser (id) {
+      this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        const { data: res } = await this.$http.delete(`users/${id}`)
+        console.log(res)
+        if (res.meta.status === 200) {
+          this.getUsersData()
+          this.$message({
+            type: 'success',
+            message: res.meta.msg
+          })
+        } else {
+          return this.$message.error(res.meta.msg)
+        }
+      }).catch(() => {
+        return this.$message({
+          type: 'info',
+          message: '已取消删除'
+        })
       })
     }
   }
