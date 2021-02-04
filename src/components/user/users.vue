@@ -97,6 +97,7 @@
               <el-button
                 type="warning"
                 icon="el-icon-setting"
+                @click="setRoles(slotProps.row)"
                 circle
               ></el-button>
             </el-tooltip>
@@ -143,6 +144,32 @@
         >
       </span>
     </el-dialog>
+    <!-- 分配角色对话框 -->
+    <el-dialog
+  title="分配角色"
+  :visible.sync="setRolesDialogVisible"
+  @close="setRolesDialogclosed"
+  width="50%">
+  <div>
+    <p>当前的用户：{{userInfo.username}}</p>
+    <p>当前的角色：{{userInfo.role_name}}</p>
+    <p>
+      分配新角色：
+      <el-select v-model="selectRoleId" placeholder="请选择">
+    <el-option
+      v-for="item in rolesList"
+      :key="item.id"
+      :label="item.roleName"
+      :value="item.id">
+    </el-option>
+  </el-select>
+    </p>
+  </div>
+  <span slot="footer" class="dialog-footer">
+    <el-button @click="setRolesDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="setRolesDialogVisible = false">确 定</el-button>
+  </span>
+</el-dialog>
   </div>
 </template>
 
@@ -250,7 +277,15 @@ export default {
       // 控制修改用户对话框
       trimUserVisible: false,
       // 查询用户数据
-      trimUserForm: {}
+      trimUserForm: {},
+      // 控制分配角色对话框
+      setRolesDialogVisible: false,
+      // 当前用户信息
+      userInfo: {},
+      // 所有角色列表
+      rolesList: [],
+      // 已选新角色id
+      selectRoleId: ''
     }
   },
   created () {
@@ -323,6 +358,7 @@ export default {
         }
       })
     },
+    // 获取修改角色
     async trimUser (id) {
       // console.log(id)
       this.trimUserVisible = true
@@ -342,7 +378,7 @@ export default {
     },
     // 提交修改角色
     addTrimUser () {
-      console.log(this.trimUserForm)
+      // console.log(this.trimUserForm)
       this.$refs.trimUserRef.validate(async trimFlag => {
         if (trimFlag) {
           const { data: res } = await this.$http.put(`users/${this.trimUserForm.id}`, {
@@ -385,6 +421,29 @@ export default {
           message: '已取消删除'
         })
       })
+    },
+    // 分配角色对话框
+    async setRoles (userInfo) {
+      this.userInfo = userInfo
+      const { data: res } = await this.$http.get('roles')
+      if (res.meta.status === 200) {
+        this.rolesList = res.data
+      } else {
+        this.$message.error(res.meta.msg)
+      }
+      this.setRolesDialogVisible = true
+    },
+    // 分配角色对话框关闭事件
+    async setRolesDialogclosed () {
+      const { data: res } = await this.$http.put(`users/${this.userInfo.id}/role`, {
+        rid: this.selectRoleId
+      })
+      if (res.meta.status === 200) {
+        this.$message.success(res.meta.msg)
+        this.getUsersData()
+      } else {
+        this.$message.error(res.meta.msg)
+      }
     }
   }
 }
