@@ -36,11 +36,11 @@
           >
           <el-tag type="warning" v-else>三级</el-tag>
         </template>
-        <template slot="handle">
-          <el-button type="primary" icon="el-icon-edit" size="mini"
+        <template slot="handle" slot-scope="goodsScope">
+          <el-button type="primary" @click="editCate(goodsScope.row)" icon="el-icon-edit" size="mini"
             >编辑</el-button
           >
-          <el-button type="danger" icon="el-icon-delete" size="mini"
+          <el-button type="danger" @click="deleteCate(goodsScope.row)" icon="el-icon-delete" size="mini"
             >删除</el-button
           >
         </template>
@@ -66,12 +66,33 @@
     <el-input v-model="addCateForm.cat_name"></el-input>
   </el-form-item>
   <el-form-item label="父级分类">
-    <el-input></el-input>
+    <el-cascader
+    v-model="selectedKeys"
+    :options="parentList"
+    :props="parentListProps"
+    @change="handleChange"
+    clearable></el-cascader>
   </el-form-item>
   </el-form>
   <span slot="footer" class="dialog-footer">
     <el-button @click="adddCateDialogVisible = false">取 消</el-button>
-    <el-button type="primary" @click="adddCateDialogVisible = false">确 定</el-button>
+    <el-button type="primary" @click="addCateHandle">确 定</el-button>
+  </span>
+</el-dialog>
+<!-- 编辑分类对话框 -->
+<el-dialog
+  title="编辑分类"
+  :visible.sync="editCateDialogVisible"
+  @close="resetEditFields"
+  width="50%">
+  <el-form ref="editFormRef" :rules="editFormRules" :model="editForm" label-width="80px">
+  <el-form-item label="分类名称" prop="cat_name">
+    <el-input v-model="editForm.cat_name"></el-input>
+  </el-form-item>
+  </el-form>
+  <span slot="footer" class="dialog-footer">
+    <el-button @click="editCateDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="editFormHandle">确 定</el-button>
   </span>
 </el-dialog>
   </div>
@@ -123,9 +144,34 @@ export default {
       addCateFormRules: {
         cat_name: [
           { required: true, message: '请输入分类名称', trigger: 'blur' },
-          { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
+          { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'blur' }
         ]
-      }
+      },
+      // 父级分类列表
+      parentList: [],
+      // 分类级联选择器配置
+      parentListProps: {
+        expandTrigger: 'hover',
+        value: 'cat_id',
+        label: 'cat_name',
+        children: 'children',
+        checkStrictly: true
+      },
+      // 级联选择器选择的值
+      selectedKeys: [],
+      // 当前分类id
+      cateId: '',
+      // 编辑分类
+      editForm: {
+        cat_name: ''
+      },
+      editFormRules: {
+        cat_name: [
+          { required: true, message: '请输入分类名称', trigger: 'blur' },
+          { min: 1, max: 6, message: '长度在 1 到 6 个字符', trigger: 'blur' }
+        ]
+      },
+      editCateDialogVisible: false
     }
   },
   created () {
@@ -152,11 +198,112 @@ export default {
     },
     // 添加分类对话框
     adddCate () {
+      this.getParentList()
       this.adddCateDialogVisible = true
     },
     // 重置添加分类验证规则
     resetAddCateFile () {
       this.$refs.addCateFormRef.resetFields()
+      this.selectedKeys = []
+      this.addCateForm.cat_pid = 0
+      this.addCateForm.cat_level = 0
+    },
+    // 获取父级分类列表
+    async getParentList () {
+      const { data: res } = await this.$http.get('categories', {
+        params: {
+          type: 2
+        }
+      })
+      if (res.meta.status !== 200) {
+        return this.$message.error('获取分类失败')
+      }
+      // console.log(res.data)
+      this.parentList = res.data
+    },
+    // 级联选择器改变事件
+    handleChange () {
+      // console.log(this.selectedKeys)
+      if (this.selectedKeys.length > 0) {
+        // 当前分类的父id
+        this.addCateForm.cat_pid = this.selectedKeys[this.selectedKeys.length - 1]
+        // 当前分类的等级
+        this.addCateForm.cat_level = this.selectedKeys.length
+      } else {
+        this.addCateForm.cat_pid = 0
+        this.addCateForm.cat_level = 0
+      }
+    },
+    // 添加分类提交
+    addCateHandle () {
+      this.$refs.addCateFormRef.validate(async addCateFlag => {
+        // console.log(addCateFlag)
+        if (!addCateFlag) {
+          return this.$message.error('校验未通过')
+        }
+        // console.log(this.addCateForm)
+        const { data: res } = await this.$http.post('categories', this.addCateForm)
+        if (res.meta.status !== 201) {
+          return this.$message.error(res.meta.msg)
+        }
+        this.getGoodsList()
+        this.adddCateDialogVisible = false
+      })
+    },
+    // 编辑分类
+    editCate (cate) {
+      this.cateId = cate.cat_id
+      this.getCateById()
+      this.editCateDialogVisible = true
+    },
+    // 编辑提交分类
+    async editFormHandle () {
+      const { data: res } = await this.$http.put(`categories/${this.cateId}`, {
+        cat_name: this.editForm.cat_name
+      })
+      if (res.meta.status !== 200) {
+        return this.$message.error(res.meta.msg)
+      }
+      this.getGoodsList()
+      // console.log(11)
+      this.editCateDialogVisible = false
+    },
+    // 重置编辑分类验证
+    resetEditFields () {
+      this.$refs.editFormRef.resetFields()
+      this.cateId = ''
+    },
+    // 删除分类
+    deleteCate (cate) {
+      this.cateId = cate.cat_id
+      // console.log(this.cateId)
+      this.$confirm('此操作将永久删除该商品分类, 是否继续?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async () => {
+        const { data: res } = await this.$http.delete(`categories/${this.cateId}`)
+        if (res.meta.status !== 200) {
+          return this.$message.error(res.meta.msg)
+        }
+        this.getGoodsList()
+        this.$message({
+          type: 'success',
+          message: '删除成功!'
+        })
+      }).catch(() => {
+        this.$message({
+          type: 'info',
+          message: '已取消删除'
+        })
+      })
+    },
+    async getCateById () {
+      const { data: res } = await this.$http.get(`categories/${this.cateId}`)
+      if (res.meta.status !== 200) {
+        return this.$message.error(res.meta.msg)
+      }
+      this.editForm.cat_name = res.data.cat_name
     }
   }
 }
@@ -165,5 +312,9 @@ export default {
 <style lang="less" scoped>
 .treeTable {
     margin-top: 15px;
+}
+
+.el-cascader {
+  width: 100%;
 }
 </style>
