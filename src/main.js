@@ -17,6 +17,16 @@ axios.interceptors.request.use(config => {
 Vue.prototype.$http = axios
 Vue.config.productionTip = false
 Vue.component('tree-table', TreeTable)
+Vue.filter('dateFormat', function (value) {
+  const date = new Date(value)
+  const y = (date.getFullYear() + '').padStart(2, '0')
+  const m = (date.getMonth() + '').padStart(2, '0')
+  const d = (date.getDate() + '').padStart(2, '0')
+  const h = (date.getHours() + '').padStart(2, '0')
+  const mm = (date.getMinutes() + '').padStart(2, '0')
+  const s = (date.getSeconds() + '').padStart(2, '0')
+  return `${y}-${m}-${d} ${h}:${mm}:${s}`
+})
 
 new Vue({
   router,
