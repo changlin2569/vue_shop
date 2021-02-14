@@ -25,3 +25,11 @@ body,
 .el-alert {
     margin-bottom: 20px;
 }
+
+.el-steps {
+    margin: 10px 0;
+}
+
+.el-step__main {
+    font-size: 12px;
+} 
