@@ -6,7 +6,11 @@ import './assets/css/global.css'
 import './assets/fonts/iconfont.css'
 import axios from 'axios'
 import TreeTable from 'vue-table-with-tree-grid'
+import VueQuillEditor from 'vue-quill-editor'
 // import { config } from 'vue/types/umd'
+import 'quill/dist/quill.core.css' // import styles
+import 'quill/dist/quill.snow.css' // for snow theme
+import 'quill/dist/quill.bubble.css' // for bubble theme
 
 axios.defaults.baseURL = 'http://127.0.0.1:8888/api/private/v1/'
 axios.interceptors.request.use(config => {
@@ -27,6 +31,7 @@ Vue.filter('dateFormat', function (value) {
   const s = (date.getSeconds() + '').padStart(2, '0')
   return `${y}-${m}-${d} ${h}:${mm}:${s}`
 })
+Vue.use(VueQuillEditor)
 
 new Vue({
   router,

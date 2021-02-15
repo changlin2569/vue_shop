@@ -34,7 +34,7 @@
       <el-form
         :model="addCateForm"
         :rules="addCateFormRules"
-        ref="addcateFormRef"
+        ref="addCateFormRef"
         label-width="100px"
         label-position="top"
       >
@@ -82,20 +82,54 @@
               :key="item.id"
             >
               <el-checkbox-group v-model="item.attr_vals">
-                <el-checkbox :label="chitem"  v-for="(chitem, i) in item.attr_vals" :key="i" border></el-checkbox>
+                <el-checkbox
+                  :label="chitem"
+                  v-for="(chitem, i) in item.attr_vals"
+                  :key="i"
+                  border
+                ></el-checkbox>
               </el-checkbox-group>
             </el-form-item>
           </el-tab-pane>
-          <el-tab-pane label="商品属性" name="2">商品属性</el-tab-pane>
-          <el-tab-pane label="商品图片" name="3">商品图片</el-tab-pane>
-          <el-tab-pane label="商品内容" name="4">商品内容</el-tab-pane>
+          <el-tab-pane label="商品属性" name="2">
+            <el-form-item
+              :label="item.attr_name"
+              v-for="item in onlyTableData"
+              :key="item.attr_id"
+            >
+              <el-input v-model="item.attr_vals"></el-input>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="商品图片" name="3"
+            ><el-upload
+              action="http://127.0.0.1:8888/api/private/v1/upload"
+              :on-preview="handlePreview"
+              :on-remove="handleRemove"
+              :on-success="handleSuccess"
+              list-type="picture"
+              :headers="uploadHead"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+            </el-upload></el-tab-pane
+          >
+          <el-tab-pane label="商品内容" name="4">
+            <quill-editor v-model="addCateForm.goods_introduce"></quill-editor>
+            <el-button type="primary" @click="addFormHandle"
+              >添加商品</el-button
+            >
+          </el-tab-pane>
         </el-tabs>
       </el-form>
     </el-card>
+    <!-- 预览图片 -->
+    <el-dialog title="提示" :visible.sync="previewDialogVisible" width="50%">
+      <img :src="previewImgPath" alt="" style="width: 100%" />
+    </el-dialog>
   </div>
 </template>
 
 <script>
+import _ from 'lodash'
 export default {
   data () {
     return {
@@ -105,7 +139,10 @@ export default {
         goods_price: 0,
         goods_weight: 0,
         goods_number: 0,
-        goods_cat: []
+        goods_cat: [],
+        pics: [],
+        goods_introduce: '',
+        attrs: []
       },
       addCateFormRules: {
         goods_name: [
@@ -134,7 +171,18 @@ export default {
         expandTrigger: 'hover'
       },
       //   商品参数数据
-      manyTableData: []
+      manyTableData: [],
+      // 静态属性列表
+      onlyTableData: [],
+      // 上传的文件列表
+      // fileList: [],
+      uploadHead: {
+        Authorization: window.sessionStorage.getItem('token')
+      },
+      // 预览图片对话框
+      previewDialogVisible: false,
+      // 预览图片的路径
+      previewImgPath: ''
     }
   },
   created () {
@@ -158,7 +206,7 @@ export default {
     // 切换标签之前的钩子函数
     beforeLeave (activeName, oldActiveName) {
       //   console.log(activeName, oldActiveName)
-      if (oldActiveName === '0' && this.addCateForm.goods_cat.length === 3) {
+      if (this.addCateForm.goods_cat.length === 3) {
         return true
       }
       this.$message.error('请选择商品分类')
@@ -180,11 +228,86 @@ export default {
           this.$message.error(res.meta.msg)
         }
         console.log(res.data)
-        res.data.forEach(item => {
-          item.attr_vals = item.attr_vals.length === 0 ? [] : item.attr_vals.split(' ')
+        res.data.forEach((item) => {
+          item.attr_vals =
+            item.attr_vals.length === 0 ? [] : item.attr_vals.split(' ')
         })
         this.manyTableData = res.data
+      } else if (this.activePath === '2') {
+        const { data: res } = await this.$http.get(
+          `categories/${this.cateId}/attributes`,
+          {
+            params: {
+              sel: 'only'
+            }
+          }
+        )
+        if (res.meta.status !== 200) {
+          this.$message.error(res.meta.msg)
+        }
+        // console.log(res)
+        this.onlyTableData = res.data
       }
+    },
+    // 点击预览图片的事件
+    handlePreview (file) {
+      // console.log(file)
+      this.previewImgPath = file.response.data.url
+      this.previewDialogVisible = true
+    },
+    // 移除上传图片的事件
+    handleRemove (file) {
+      const index = this.addCateForm.pics.findIndex((item) => {
+        return item.pic === file.response.data.tmp_path
+      })
+      // console.log(index)
+      this.addCateForm.pics.splice(index, 1)
+      // console.log(this.addCateForm)
+    },
+    // 文件上传成功
+    handleSuccess (res) {
+      // console.log(this.fileList)
+      // console.log(res)
+      const picInfo = {
+        pic: res.data.tmp_path
+      }
+      this.addCateForm.pics.push(picInfo)
+      // console.log(this.addCateForm)
+    },
+    // 点击添加商品
+    addFormHandle () {
+      const newForm = _.cloneDeep(this.addCateForm)
+      newForm.goods_cat = newForm.goods_cat.join(',')
+      // console.log(newForm)
+      // 添加动态参数
+      this.manyTableData.forEach((item) => {
+        const newInfo = {
+          attr_id: item.attr_id,
+          attr_value: item.attr_vals.join(' ')
+        }
+        this.addCateForm.attrs.push(newInfo)
+      })
+      // 添加静态属性
+      this.onlyTableData.forEach((item) => {
+        const newInfo = {
+          attr_id: item.attr_id,
+          attr_value: item.attr_vals
+        }
+        this.addCateForm.attrs.push(newInfo)
+      })
+      newForm.attrs = this.addCateForm.attrs
+      // console.log(newForm)
+      this.$refs.addCateFormRef.validate(async (addFlag) => {
+        if (!addFlag) {
+          return this.$message.error('请填写必要的表单项')
+        }
+        const { data: res } = await this.$http.post('goods', newForm)
+        if (res.meta.status !== 201) {
+          return this.$message.error(res.meta.msg)
+        }
+        this.$message.success('添加成功')
+        this.$router.push('/goods')
+      })
     }
   },
   computed: {
@@ -200,6 +323,10 @@ export default {
 
 <style lang="less" scoped>
 .el-checkbox {
-    margin:0 10px 0 0!important;
+  margin: 0 10px 0 0 !important;
+}
+
+.el-button {
+  margin-top: 20px;
 }
 </style>

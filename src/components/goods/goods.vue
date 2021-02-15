@@ -140,7 +140,7 @@ export default {
     },
     // 添加商品跳转
     goAddPage () {
-      this.$router.push('goods/add')
+      this.$router.push('/goods/add')
     }
   }
 }
